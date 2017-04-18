@@ -1,5 +1,5 @@
-#include "system_generator.h"
 #include "test.h"
+#include "system.h"
 
 
 typedef struct {
@@ -10,14 +10,13 @@ typedef struct {
 
 int tick_count = 0;
 
-void myTick(entity_t entity, position * pos)
+void position_tick(entity_t entity, position * pos)
 {
     ++tick_count;
 }
 
-
-
-create_system(position, &myTick, true);
+#define ESE_SYSTEM_TYPE position
+#include "system_generator.h"
 
 int main(int arc, char ** argv)
 {

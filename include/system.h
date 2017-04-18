@@ -1,6 +1,7 @@
 #pragma once
-#include "entity.h"
 #include <stdio.h>
+#include "global.h"
+#include "entity.h"
 
 typedef void (*system_add)(entity_t,void*);
 typedef void * (*system_find)(entity_t);

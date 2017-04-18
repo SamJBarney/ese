@@ -1,258 +1,263 @@
-#pragma once
-#include "global.h"
-#include "system.h"
-#include "entity.h"
-
-struct entity_array
+typedef struct
 {
 	size_t size;
 	size_t count;
 	entity_t * entities;
-};
+} entity_array_t;
 
-#define create_system(type, tick_func, caching) \
-\
-\
-typedef void(*ticker)(entity_t,type *); \
-static pthread_mutex_t type ## _active_mutex; \
-static pthread_mutex_t type ## _pending_mutex; \
-static pthread_mutex_t type ## _deletion_mutex; \
-\
-\
-void component_init_ ## type() \
-{ \
-	pthread_mutex_init(&type ## _active_mutex, NULL); \
-	pthread_mutex_init(&type ## _pending_mutex, NULL); \
-	pthread_mutex_init(&type ## _deletion_mutex, NULL); \
-} \
-\
-\
-static struct entity_array type ## _entities = {0,0,NULL}; \
-static type * type ## _components = NULL; \
-\
-\
-typedef struct \
-{ \
-	entity_t entity; \
-	type component; \
-} pending_component; \
-\
-\
-static struct pending_components \
-{ \
-	size_t size; \
-	size_t count; \
-	pending_component * pending; \
-} type ## _pending_components = {0,0,NULL}; \
-\
-\
-static struct entity_array type ## _removals = {0,0,NULL}; \
-\
-\
-void type ## _add(entity_t entity, void * component) \
-{ \
-	if (type ## _pending_components.size > type ## _pending_components.count) \
-	{ \
-		pthread_mutex_lock(&type ## _pending_mutex); \
-		type ## _pending_components.pending[type ## _pending_components.count].component = *(type*)component; \
-		type ## _pending_components.pending[type ## _pending_components.count].entity = entity; \
-		++type ## _pending_components.count; \
-		pthread_mutex_unlock(&type ## _pending_mutex); \
-	} \
-	else \
-	{ \
-		pthread_mutex_lock(&type ## _pending_mutex); \
-		type ## _pending_components.size += (type ## _pending_components.size / 5) + 10; \
-		type ## _pending_components.pending = realloc(type ## _pending_components.pending, type ## _pending_components.size * sizeof(pending_component)); \
-		type ## _pending_components.pending[type ## _pending_components.count].component = *(type*)component; \
-		type ## _pending_components.pending[type ## _pending_components.count].entity = entity; \
-		++type ## _pending_components.count; \
-		pthread_mutex_unlock(&type ## _pending_mutex); \
-	} \
-} \
-\
-\
-static void type ## _add_internal() \
-{ \
-	if (type ## _entities.size > (type ## _entities.count + type ## _pending_components.count)) \
-	{ \
-		pthread_mutex_lock(&type ## _active_mutex); \
-		pthread_mutex_lock(&type ## _pending_mutex); \
-		for (size_t i = 0; i < type ## _pending_components.count; ++i) \
-		{ \
-			type ## _entities.entities[type ## _entities.count] = type ## _pending_components.pending[i].entity; \
-			type ## _components[type ## _entities.count] = type ## _pending_components.pending[i].component; \
-			++type ## _entities.count; \
-		} \
-		type ## _pending_components.count = 0; \
-		pthread_mutex_unlock(&type ## _pending_mutex); \
-		pthread_mutex_unlock(&type ## _active_mutex); \
-	} \
-	else \
-	{ \
-		pthread_mutex_lock(&type ## _active_mutex); \
-		pthread_mutex_lock(&type ## _pending_mutex); \
-		type ## _entities.size += (type ## _entities.size / 5) + type ## _pending_components.count; \
-		type ## _entities.entities = realloc(type ## _entities.entities, type ## _entities.size * sizeof(entity_t)); \
-		type ## _components = realloc(type ## _components, type ## _entities.size * sizeof(type)); \
-		for (size_t i = 0; i < type ## _pending_components.count; ++i) \
-		{ \
-			type ## _entities.entities[type ## _entities.count] = type ## _pending_components.pending[i].entity; \
-			type ## _components[type ## _entities.count] = type ## _pending_components.pending[i].component; \
-			++type ## _entities.count; \
-		} \
-		type ## _pending_components.count = 0; \
-		pthread_mutex_unlock(&type ## _pending_mutex); \
-		pthread_mutex_unlock(&type ## _active_mutex); \
-	} \
-} \
-\
-\
-static size_t type ## _find_idx(entity_t entity) \
-{ \
-	size_t idx = SIZE_MAX; \
-	pthread_mutex_lock(&type ## _active_mutex); \
-	for (size_t i = 0; i < type ## _entities.count; ++i) \
-	{ \
-		if (type ## _entities.entities[i] != entity); \
-		else \
-		{ \
-			idx = i; \
-			break; \
-		} \
-	} \
-	pthread_mutex_unlock(&type ## _active_mutex); \
-	return idx; \
-} \
-\
-\
-void * type ## _find(entity_t entity) \
-{ \
-	size_t idx = type ## _find_idx(entity); \
-	if (idx != SIZE_MAX) \
-	{ \
-		return (type ## _components + idx); \
-	} \
-	return NULL; \
-} \
-\
-\
-void type ## _remove(entity_t entity) \
-{ \
-	if (type ## _removals.size > type ## _removals.count) \
-	{ \
-		pthread_mutex_lock(&type ## _deletion_mutex); \
-		type ## _removals.entities[type ## _removals.count] = entity; \
-		++type ## _removals.count; \
-		pthread_mutex_unlock(&type ## _deletion_mutex); \
-	} \
-	else \
-	{ \
-		pthread_mutex_lock(&type ## _deletion_mutex); \
-		type ## _removals.size += (type ## _removals.size / 5) + 10; \
-		type ## _removals.entities = realloc(type ## _removals.entities, type ## _removals.size * sizeof(type)); \
-		type ## _removals.entities[type ## _removals.count] = entity; \
-		++type ## _removals.count; \
-		pthread_mutex_unlock(&type ## _deletion_mutex); \
-	} \
-} \
-\
-\
-static void type ## _remove_internal() \
-{ \
-	pthread_mutex_lock(&type ## _active_mutex); \
-	pthread_mutex_lock(&type ## _deletion_mutex); \
-	size_t count = type ## _entities.count; \
-	for(size_t i = 0; i <count; ++i) \
-	{ \
-		entity_t entity = type ## _entities.entities[i]; \
-		for( size_t j = 0; j < type ## _removals.count; ++j) \
-		{ \
-			entity_t checker = type ## _removals.entities[j]; \
+
+#ifndef ESE_SYSTEM_TYPE
+	#error "ESE_SYSTEM_TYPE must be defined before including system_generator.h"
+#endif
+
+#ifndef ESE_JOIN
+	#define ESE_HELPER(prepend, symbol) prepend ## _ ## symbol
+	#define ESE_JOIN_(prepend, symbol) ESE_HELPER(prepend, symbol)
+	#define ESE_JOIN(symbol) ESE_JOIN_(ESE_SYSTEM_TYPE, symbol)
+#endif
+
+typedef void(*ticker)(entity_t,ESE_SYSTEM_TYPE *);
+static pthread_mutex_t ESE_JOIN(active_mutex);
+static pthread_mutex_t ESE_JOIN(pending_mutex);
+static pthread_mutex_t ESE_JOIN(deletion_mutex);
+
+
+static entity_array_t ESE_JOIN(entities) = {0,0,NULL};
+static entity_array_t ESE_JOIN(removals) = {0,0,NULL};
+
+static ESE_SYSTEM_TYPE * ESE_JOIN(components) = NULL;
+
+void ESE_JOIN(system_init_internal)()
+{
+	pthread_mutex_init(&ESE_JOIN(active_mutex), NULL);
+	pthread_mutex_init(&ESE_JOIN(pending_mutex), NULL);
+	pthread_mutex_init(&ESE_JOIN(deletion_mutex), NULL);
+
+	#ifdef ESE_CUSTOM_INIT
+	ESE_JOIN(system_init)();
+	#endif
+
+}
+
+typedef struct
+{
+	entity_t entity;
+	ESE_SYSTEM_TYPE component;
+} ESE_JOIN(pending_component);
+
+static struct
+{
+	size_t size;
+	size_t count;
+	ESE_JOIN(pending_component) * pending;
+} ESE_JOIN(pending_components) = {0,0,NULL};
+
+void ESE_JOIN(add)(entity_t entity, void * component)
+{
+	if (ESE_JOIN(pending_components).size > ESE_JOIN(pending_components).count)
+	{
+		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
+		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].component = *(ESE_SYSTEM_TYPE *)component;
+		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].entity = entity;
+		++ESE_JOIN(pending_components).count;
+		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
+	}
+	else
+	{
+		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
+		ESE_JOIN(pending_components).size += (ESE_JOIN(pending_components).size / 5) + 10;
+		ESE_JOIN(pending_components).pending = realloc(ESE_JOIN(pending_components).pending, ESE_JOIN(pending_components).size * sizeof(ESE_JOIN(pending_component)));
+		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].component = *(ESE_SYSTEM_TYPE *)component;
+		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].entity = entity;
+		++ESE_JOIN(pending_components).count;
+		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
+	}
+}
+
+
+static void ESE_JOIN(add_internal)()
+{
+	if (ESE_JOIN(entities).size > (ESE_JOIN(entities).count + ESE_JOIN(pending_components).count))
+	{
+		pthread_mutex_lock(&ESE_JOIN(active_mutex));
+		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
+		for (size_t i = 0; i < ESE_JOIN(pending_components).count; ++i)
+		{
+			ESE_JOIN(entities).entities[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].entity;
+			ESE_JOIN(components)[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].component;
+			++ESE_JOIN(entities).count;
+		}
+		ESE_JOIN(pending_components).count = 0;
+		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
+		pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	}
+	else
+	{
+		pthread_mutex_lock(&ESE_JOIN(active_mutex));
+		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
+		ESE_JOIN(entities).size += (ESE_JOIN(entities).size / 5) + ESE_JOIN(pending_components).count;
+		ESE_JOIN(entities).entities = realloc(ESE_JOIN(entities).entities, ESE_JOIN(entities).size * sizeof(entity_t));
+		ESE_JOIN(components) = realloc(ESE_JOIN(components), ESE_JOIN(entities).size * sizeof(ESE_SYSTEM_TYPE));
+		for (size_t i = 0; i < ESE_JOIN(pending_components).count; ++i)
+		{
+			ESE_JOIN(entities).entities[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].entity;
+			ESE_JOIN(components)[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].component;
+			++ESE_JOIN(entities).count;
+		}
+		ESE_JOIN(pending_components).count = 0;
+		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
+		pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	}
+}
+
+
+static size_t ESE_JOIN(find_idx)(entity_t entity)
+{
+	size_t idx = SIZE_MAX;
+	pthread_mutex_lock(&ESE_JOIN(active_mutex));
+	for (size_t i = 0; i < ESE_JOIN(entities).count; ++i)
+	{
+		if (ESE_JOIN(entities).entities[i] != entity);
+		else
+		{
+			idx = i;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	return idx;
+}
+
+
+void * ESE_JOIN(find)(entity_t entity)
+{
+	size_t idx = ESE_JOIN(find_idx)(entity);
+	if (idx != SIZE_MAX)
+	{
+		return (ESE_JOIN(components) + idx);
+	}
+	return NULL;
+}
+
+
+void ESE_JOIN(remove)(entity_t entity)
+{
+	if (ESE_JOIN(removals).size > ESE_JOIN(removals).count)
+	{
+		pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
+		ESE_JOIN(removals).entities[ESE_JOIN(removals).count] = entity;
+		++ESE_JOIN(removals).count;
+		pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
+	}
+	else
+	{
+		pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
+		ESE_JOIN(removals).size += (ESE_JOIN(removals).size / 5) + 10;
+		ESE_JOIN(removals).entities = realloc(ESE_JOIN(removals).entities, ESE_JOIN(removals).size * sizeof(ESE_SYSTEM_TYPE));
+		ESE_JOIN(removals).entities[ESE_JOIN(removals).count] = entity;
+		++ESE_JOIN(removals).count;
+		pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
+	}
+}
+
+
+static void ESE_JOIN(remove_internal)()
+{
+	pthread_mutex_lock(&ESE_JOIN(active_mutex));
+	pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
+	size_t count = ESE_JOIN(entities).count;
+	for(size_t i = 0; i <count; ++i)
+	{
+		entity_t entity = ESE_JOIN(entities).entities[i];
+		for( size_t j = 0; j < ESE_JOIN(removals).count; ++j)
+		{
+			entity_t checker = ESE_JOIN(removals).entities[j];
 			if (entity != checker) {}\
-			else \
-			{ \
-				type ## _components[i] = type ## _components[type ## _entities.count]; \
-				type ## _entities.entities[i] = type ## _entities.entities[type ## _entities.count]; \
-				--type ## _entities.count; \
-				break; \
-			} \
-		} \
-	} \
-	type ## _removals.count = 0; \
-	pthread_mutex_unlock(&type ## _deletion_mutex); \
-	pthread_mutex_unlock(&type ## _active_mutex); \
-} \
-\
-\
-void type ## _save(FILE * file) \
-{ \
-	if (caching) \
-	{ \
-		pthread_mutex_lock(&type ## _active_mutex); \
-		fwrite(&(type ## _entities.count), sizeof(size_t), 1, file); \
-		fwrite(type ## _entities.entities, sizeof(entity_t), type ## _entities.count, file); \
-		fwrite(type ## _components, sizeof(type), type ## _entities.count, file); \
-		pthread_mutex_unlock(&type ## _active_mutex); \
-		pthread_mutex_lock(&type ## _pending_mutex); \
-		fwrite(&(type ## _pending_components.count), sizeof(size_t), 1, file); \
-		fwrite(type ## _pending_components.pending, sizeof(pending_component), type ## _pending_components.count, file); \
-		pthread_mutex_unlock(&type ## _pending_mutex); \
-		pthread_mutex_lock(&type ## _deletion_mutex); \
-		fwrite(&(type ## _removals.count), sizeof(size_t), 1, file); \
-		fwrite(type ## _removals.entities, sizeof(entity_t), type ## _entities.count, file); \
-		pthread_mutex_unlock(&type ## _deletion_mutex); \
-	} \
-} \
-\
-\
-void type ## _load(FILE * file) \
-{ \
-	if (caching) \
-	{ \
-		pthread_mutex_lock(&type ## _active_mutex); \
-		if (fread(&(type ## _entities.count), sizeof(size_t), 1, file) == 1) \
-		{ \
-			fread(type ## _entities.entities, sizeof(entity_t), type ## _entities.count, file); \
-			fread(type ## _components, sizeof(type), type ## _entities.count, file); \
-		} \
-		pthread_mutex_unlock(&type ## _active_mutex); \
-		pthread_mutex_lock(&type ## _pending_mutex); \
-		if (fread(&(type ## _pending_components.count), sizeof(size_t), 1, file) == 1) \
-		{ \
-			fread(type ## _pending_components.pending, sizeof(pending_component), type ## _pending_components.count, file); \
-		} \
-		pthread_mutex_unlock(&type ## _pending_mutex); \
-		pthread_mutex_lock(&type ## _deletion_mutex); \
-		if (fread(&(type ## _removals.count), sizeof(size_t), 1, file) == 1) \
-		{ \
-			fread(type ## _removals.entities, sizeof(entity_t), type ## _removals.count, file); \
-		} \
-		pthread_mutex_unlock(&type ## _deletion_mutex); \
-	} \
-} \
-\
-\
-void type ## _tick(uint64_t tick, uint16_t thread_id, uint64_t thread_count) \
-{ \
-	if (((void*)tick_func) != NULL) \
-	{ \
-		size_t count = (type ## _entities.count / thread_count) + 1; \
-		size_t start = count * thread_id; \
-		size_t end = start + count; \
-		for (size_t i = start; i < type ## _entities.count && i < end; ++i) \
-			((ticker)tick_func)(type ## _entities.entities[i], (type ## _components + i)); \
-	} \
-} \
-\
-\
-void type ## _resolve() \
-{ \
-	type ## _add_internal(); \
-	type ## _remove_internal(); \
-} \
-\
-\
-system_functions type ## _functions = {type ## _add, type ## _find, type ## _remove, type ## _tick, type ## _save, type ## _load, type ## _resolve}; \
-\
-\
+			else
+			{
+				ESE_JOIN(components)[i] = ESE_JOIN(components)[ESE_JOIN(entities).count];
+				ESE_JOIN(entities).entities[i] = ESE_JOIN(entities).entities[ESE_JOIN(entities).count];
+				--ESE_JOIN(entities).count;
+				break;
+			}
+		}
+	}
+	ESE_JOIN(removals).count = 0;
+	pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
+	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+}
+
+
+void ESE_JOIN(cache)(FILE * file)
+{
+	#ifndef NO_CACHING
+	pthread_mutex_lock(&ESE_JOIN(active_mutex));
+	fwrite(&(ESE_JOIN(entities).count), sizeof(size_t), 1, file);
+	fwrite(ESE_JOIN(entities).entities, sizeof(entity_t), ESE_JOIN(entities).count, file);
+	fwrite(ESE_JOIN(components), sizeof(ESE_SYSTEM_TYPE), ESE_JOIN(entities).count, file);
+	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	pthread_mutex_lock(&ESE_JOIN(pending_mutex));
+	fwrite(&(ESE_JOIN(pending_components).count), sizeof(size_t), 1, file);
+	fwrite(ESE_JOIN(pending_components).pending, sizeof(ESE_JOIN(pending_component)), ESE_JOIN(pending_components).count, file);
+	pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
+	pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
+	fwrite(&(ESE_JOIN(removals).count), sizeof(size_t), 1, file);
+	fwrite(ESE_JOIN(removals).entities, sizeof(entity_t), ESE_JOIN(entities).count, file);
+	pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
+	#endif
+}
+
+
+void ESE_JOIN(restore)(FILE * file)
+{
+	pthread_mutex_lock(&ESE_JOIN(active_mutex));
+	if (fread(&(ESE_JOIN(entities.count)), sizeof(size_t), 1, file) == 1)
+	{
+		fread(ESE_JOIN(entities).entities, sizeof(entity_t), ESE_JOIN(entities).count, file);
+		fread(ESE_JOIN(components), sizeof(ESE_SYSTEM_TYPE), ESE_JOIN(entities).count, file);
+	}
+	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	pthread_mutex_lock(&ESE_JOIN(pending_mutex));
+	if (fread(&(ESE_JOIN(pending_components).count), sizeof(size_t), 1, file) == 1)
+	{
+		fread(ESE_JOIN(pending_components).pending, sizeof(ESE_JOIN(pending_component)), ESE_JOIN(pending_components).count, file);
+	}
+	pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
+	pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
+	if (fread(&(ESE_JOIN(removals).count), sizeof(size_t), 1, file) == 1)
+	{
+		fread(ESE_JOIN(removals).entities, sizeof(entity_t), ESE_JOIN(removals).count, file);
+	}
+	pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
+}
+
+
+void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_count)
+{
+		size_t count = (ESE_JOIN(entities).count / thread_count) + 1;
+		size_t start = count * thread_id;
+		size_t end = start + count;
+		for (size_t i = start; i < ESE_JOIN(entities).count && i < end; ++i)
+			ESE_JOIN(tick)(ESE_JOIN(entities).entities[i], (ESE_JOIN(components) + i));
+}
+
+
+void ESE_JOIN(resolve)()
+{
+	ESE_JOIN(add_internal)();
+	ESE_JOIN(remove_internal)();
+	#ifdef ESE_CUSTOM_RESOLVER
+	ESE_JOIN(resolve)();
+	#endif
+}
+
+
+system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(cache), ESE_JOIN(restore), ESE_JOIN(resolve)};
+
+#undef ESE_SYSTEM_TYPE
+#ifdef ESE_CUSTOM_INIT
+	#undef ESE_CUSTOM_INIT
+#endif
+#ifdef ESE_CUSTOM_RESOLVER
+	#undef ESE_CUSTOM_RESOLVER
+#endif

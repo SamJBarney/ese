@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "global.h"
 #include "entity.h"
+#include "entity_array.h"
 
 typedef void (*system_add)(entity_t,void*);
 typedef void * (*system_find)(entity_t);

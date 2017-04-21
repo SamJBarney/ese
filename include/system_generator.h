@@ -1,9 +1,4 @@
-typedef struct
-{
-	size_t size;
-	size_t count;
-	entity_t * entities;
-} entity_array_t;
+
 
 
 #ifndef ESE_SYSTEM_TYPE
@@ -242,17 +237,17 @@ void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_
 }
 
 
-void ESE_JOIN(resolve)()
+void ESE_JOIN(resolve_internal)()
 {
-	ESE_JOIN(add_internal)();
 	ESE_JOIN(remove_internal)();
+	ESE_JOIN(add_internal)();
 	#ifdef ESE_CUSTOM_RESOLVER
 	ESE_JOIN(resolve)();
 	#endif
 }
 
 
-system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(cache), ESE_JOIN(restore), ESE_JOIN(resolve)};
+system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(cache), ESE_JOIN(restore), ESE_JOIN(resolve_internal)};
 
 #undef ESE_SYSTEM_TYPE
 #ifdef ESE_CUSTOM_INIT

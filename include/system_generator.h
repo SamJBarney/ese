@@ -28,8 +28,8 @@ void ESE_JOIN(system_init_internal)()
 	pthread_mutex_init(&ESE_JOIN(pending_mutex), NULL);
 	pthread_mutex_init(&ESE_JOIN(deletion_mutex), NULL);
 
-	#ifdef ESE_CUSTOM_INIT
-	ESE_JOIN(system_init)();
+	#ifdef ESE_INIT_HOOK
+	ESE_INIT_HOOK();
 	#endif
 
 }
@@ -72,6 +72,10 @@ void ESE_JOIN(add)(entity_t entity, void * component)
 
 static void ESE_JOIN(add_internal)()
 {
+	#ifdef ESE_ADD_HOOK
+	ESE_ADD_HOOK(entity, component);
+	#endif
+	
 	if (ESE_JOIN(entities).size > (ESE_JOIN(entities).count + ESE_JOIN(pending_components).count))
 	{
 		pthread_mutex_lock(&ESE_JOIN(active_mutex));
@@ -169,7 +173,10 @@ static void ESE_JOIN(remove_internal)()
 			entity_t checker = ESE_JOIN(removals).entities[j];
 			if (entity != checker) {}\
 			else
-			{
+			{	
+				#ifdef ESE_REMOVE_HOOK
+				ESE_REMOVE_HOOK(entity, i);
+				#endif
 				ESE_JOIN(components)[i] = ESE_JOIN(components)[ESE_JOIN(entities).count];
 				ESE_JOIN(entities).entities[i] = ESE_JOIN(entities).entities[ESE_JOIN(entities).count];
 				--ESE_JOIN(entities).count;
@@ -195,20 +202,27 @@ void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_
 
 void ESE_JOIN(resolve_internal)()
 {
+	#ifdef ESE_RESOLVE_HOOK
+	ESE_RESOLVE_HOOK();
+	#endif
 	ESE_JOIN(remove_internal)();
 	ESE_JOIN(add_internal)();
-	#ifdef ESE_CUSTOM_RESOLVER
-	ESE_JOIN(resolve)();
-	#endif
 }
 
 
 system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(resolve_internal)};
 
 #undef ESE_SYSTEM_TYPE
-#ifdef ESE_CUSTOM_INIT
-	#undef ESE_CUSTOM_INIT
+
+#ifdef ESE_INIT_HOOK
+	#undef ESE_INIT_HOOK
 #endif
-#ifdef ESE_CUSTOM_RESOLVER
-	#undef ESE_CUSTOM_RESOLVER
+#ifdef ESE_ADD_HOOK
+	#undef ESE_ADD_HOOK
+#endif
+#ifdef ESE_REMOVE_HOOK
+	#undef ESE_REMOVE_HOOK
+#endif
+#ifdef ESE_RESOLVE_HOOK
+	#undef ESE_RESOLVE_HOOK
 #endif

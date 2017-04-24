@@ -183,50 +183,6 @@ static void ESE_JOIN(remove_internal)()
 }
 
 
-void ESE_JOIN(cache)(FILE * file)
-{
-	#ifndef NO_CACHING
-	pthread_mutex_lock(&ESE_JOIN(active_mutex));
-	fwrite(&(ESE_JOIN(entities).count), sizeof(size_t), 1, file);
-	fwrite(ESE_JOIN(entities).entities, sizeof(entity_t), ESE_JOIN(entities).count, file);
-	fwrite(ESE_JOIN(components), sizeof(ESE_SYSTEM_TYPE), ESE_JOIN(entities).count, file);
-	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
-	pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-	fwrite(&(ESE_JOIN(pending_components).count), sizeof(size_t), 1, file);
-	fwrite(ESE_JOIN(pending_components).pending, sizeof(ESE_JOIN(pending_component)), ESE_JOIN(pending_components).count, file);
-	pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
-	pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
-	fwrite(&(ESE_JOIN(removals).count), sizeof(size_t), 1, file);
-	fwrite(ESE_JOIN(removals).entities, sizeof(entity_t), ESE_JOIN(entities).count, file);
-	pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
-	#endif
-}
-
-
-void ESE_JOIN(restore)(FILE * file)
-{
-	pthread_mutex_lock(&ESE_JOIN(active_mutex));
-	if (fread(&(ESE_JOIN(entities.count)), sizeof(size_t), 1, file) == 1)
-	{
-		fread(ESE_JOIN(entities).entities, sizeof(entity_t), ESE_JOIN(entities).count, file);
-		fread(ESE_JOIN(components), sizeof(ESE_SYSTEM_TYPE), ESE_JOIN(entities).count, file);
-	}
-	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
-	pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-	if (fread(&(ESE_JOIN(pending_components).count), sizeof(size_t), 1, file) == 1)
-	{
-		fread(ESE_JOIN(pending_components).pending, sizeof(ESE_JOIN(pending_component)), ESE_JOIN(pending_components).count, file);
-	}
-	pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
-	pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
-	if (fread(&(ESE_JOIN(removals).count), sizeof(size_t), 1, file) == 1)
-	{
-		fread(ESE_JOIN(removals).entities, sizeof(entity_t), ESE_JOIN(removals).count, file);
-	}
-	pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
-}
-
-
 void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_count)
 {
 		size_t count = (ESE_JOIN(entities).count / thread_count) + 1;
@@ -247,7 +203,7 @@ void ESE_JOIN(resolve_internal)()
 }
 
 
-system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(cache), ESE_JOIN(restore), ESE_JOIN(resolve_internal)};
+system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(resolve_internal)};
 
 #undef ESE_SYSTEM_TYPE
 #ifdef ESE_CUSTOM_INIT

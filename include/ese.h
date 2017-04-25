@@ -10,7 +10,7 @@ typedef bool (*tick_callback_t)(uint64_t, ese_state_t);
 void ese_init();
 
 // Registers a system with ese
-void ese_register(const char *, void *);
+bool ese_register(const char * name);
 
 // Starts the ese running
 void ese_run(size_t tick_duration, tick_callback_t callback);

@@ -61,32 +61,48 @@ void ese_init()
 
 
 
-void ese_register(const char * name, void * source)
+bool ese_register(const char * name)
 {
-    // Find the system functions
-    void * functions = dlsym(source, "functions");
-    if (functions)
+    size_t name_length = strlen(name);
+    // Build the symbol name
+    char * path = malloc(name_length + strlen(".system") + 1);
+    strcpy(path, name);
+    strcat(path, ".system");
+    void * source = dlopen(path, RTLD_LAZY);
+    free(path);
+    if (source)
     {
-        if(system_wrapper_array.count < system_wrapper_array.size);
+        // Find the system functions
+        void * functions = dlsym(source, "functions");
+        if (functions)
+        {
+            if(system_wrapper_array.count < system_wrapper_array.size);
+            else
+            {
+                system_wrapper_array.size += 2;
+                system_wrapper_array.wrappers = realloc(system_wrapper_array.wrappers, sizeof(system_wrapper) * system_wrapper_array.size);
+            }
+            // Add the source
+            system_wrapper_array.wrappers[system_wrapper_array.count].source = source;
+
+            // Copy the name
+            size_t name_length = strlen(name);
+            system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
+            memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
+            strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
+
+            // Add the functions
+            system_wrapper_array.wrappers[system_wrapper_array.count].functions = (system_functions *)functions;
+
+            ++system_wrapper_array.count;
+            return true;
+        }
         else
         {
-            system_wrapper_array.size += 2;
-            system_wrapper_array.wrappers = realloc(system_wrapper_array.wrappers, sizeof(system_wrapper) * system_wrapper_array.size);
+            dlclose(source);
         }
-        // Add the source
-        system_wrapper_array.wrappers[system_wrapper_array.count].source = source;
-
-        // Copy the name
-        size_t name_length = strlen(name);
-        system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
-        memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
-        strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
-
-        // Add the functions
-        system_wrapper_array.wrappers[system_wrapper_array.count].functions = (system_functions *)functions;
-
-        ++system_wrapper_array.count;
     }
+    return false;
 }
 
 

@@ -63,15 +63,8 @@ void ese_init()
 
 void ese_register(const char * name, void * source)
 {
-    size_t name_length = strlen(name);
-    // Build the symbol name
-    char * symbol = malloc(name_length + strlen("_functions") + 1);
-    strcpy(symbol, name);
-    strcat(symbol, "_functions");
-    // Find the symbol
-    void * functions = dlsym(source, symbol);
-    // Release the extra memory we acquired
-    free(symbol);
+    // Find the system functions
+    void * functions = dlsym(source, "functions");
     if (functions)
     {
         if(system_wrapper_array.count < system_wrapper_array.size);
@@ -84,6 +77,7 @@ void ese_register(const char * name, void * source)
         system_wrapper_array.wrappers[system_wrapper_array.count].source = source;
 
         // Copy the name
+        size_t name_length = strlen(name);
         system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
         memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
         strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
@@ -151,7 +145,7 @@ void ese_restore()
 
 
 
-void ese_seed(const char * component, entity_t entity, void * data)
+void ese_seed(const char * component, entity entity, void * data)
 {
     if (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) > STOPPED)
     {
@@ -261,10 +255,10 @@ void ese_sleep(const struct timespec * wait_time)
 
 
 
-void schedule_entity_deletion(entity_t entity)
+void schedule_entity_deletion(entity e)
 {
     for (size_t i = 0; i < system_wrapper_array.count; ++i)
     {
-        system_wrapper_array.wrappers[i].functions->remove(entity);
+        system_wrapper_array.wrappers[i].functions->remove(e);
     }
 }

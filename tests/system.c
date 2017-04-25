@@ -8,9 +8,11 @@ typedef struct {
     double z;
 } position;
 
+
 int tick_count = 0;
 
-void position_tick(entity_t entity, position * pos)
+#define ESE_SYSTEM_TIC position_tick
+void position_tick(entity e, position * pos)
 {
     ++tick_count;
 }
@@ -21,31 +23,31 @@ void position_tick(entity_t entity, position * pos)
 int main(int arc, char ** argv)
 {
     position pos = {100.0, -12.0, 123.4};
-    position_functions.add(0, &pos);
+    functions.add(0, &pos);
     EXPECT("Component shouldn't have been added to the component array'",
-        position_functions.find(0) == NULL);
+        functions.find(0) == NULL);
     EXPECT("Component should be in the 'to add' array",
-        position_pending_components.count != 0);
-    position_functions.resolve();
+        pending_components.count != 0);
+    functions.resolve();
     EXPECT("Component is in the component array",
-        position_functions.find(0) != NULL);
+        functions.find(0) != NULL);
     EXPECT("'To Add' array should be empty",
-        position_pending_components.count == 0);
-    position_functions.tick(0,0,1);
+        pending_components.count == 0);
+    functions.tick(0,0,1);
     EXPECT("Number of components ticked should be 1",
         tick_count == 1);
-    position_functions.remove(0);
+    functions.remove(0);
     EXPECT("Component is in the component array",
-        position_functions.find(0) != NULL);
+        functions.find(0) != NULL);
     EXPECT("'To Delete' array should have one entry",
-        position_removals.count == 1);
-    position_functions.resolve();
+        removals.count == 1);
+    functions.resolve();
     EXPECT("Component array should be empty'",
-        position_functions.find(0) == NULL);
+        functions.find(0) == NULL);
     EXPECT("'To Delete' array should be empty",
-        position_removals.count == 0);
+        removals.count == 0);
     tick_count = 0;
-    position_functions.tick(0,0,1);
+    functions.tick(0,0,1);
     EXPECT("Number of components ticked should be 0",
         tick_count == 0);
     return 0;

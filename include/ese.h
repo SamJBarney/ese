@@ -22,7 +22,7 @@ void ese_cache();
 void ese_restore();
 
 // Inserts new components for an entity if ese hasn't started running yet
-void ese_seed(const char * component, entity_t entity, void * data);
+void ese_seed(const char * component, entity e, void * data);
 
 // Cleans up the ese environment
 void ese_cleanup();

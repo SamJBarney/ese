@@ -1,32 +1,28 @@
-
-
-
 #ifndef ESE_SYSTEM_TYPE
 	#error "ESE_SYSTEM_TYPE must be defined before including system_generator.h"
 #endif
+ARRAY_DEFINITION(ESE_SYSTEM_TYPE)
+ARRAY_IMPLEMENTATION(ESE_SYSTEM_TYPE)
 
-#ifndef ESE_JOIN
-	#define ESE_HELPER(prepend, symbol) prepend ## _ ## symbol
-	#define ESE_JOIN_(prepend, symbol) ESE_HELPER(prepend, symbol)
-	#define ESE_JOIN(symbol) ESE_JOIN_(ESE_SYSTEM_TYPE, symbol)
-#endif
+#define ESE_HELPER(prepend, symbol) prepend ## _ ## symbol
+#define ESE_JOIN_(prepend, symbol) ESE_HELPER(prepend, symbol)
+#define ESE_JOIN(symbol) ESE_JOIN_(ESE_SYSTEM_TYPE, symbol)
 
-typedef void(*ticker)(entity_t,ESE_SYSTEM_TYPE *);
-static pthread_mutex_t ESE_JOIN(active_mutex);
-static pthread_mutex_t ESE_JOIN(pending_mutex);
-static pthread_mutex_t ESE_JOIN(deletion_mutex);
+typedef void(*ticker)(entity,ESE_SYSTEM_TYPE *);
+static pthread_mutex_t active_mutex;
+static pthread_mutex_t pending_mutex;
+static pthread_mutex_t deletion_mutex;
 
 
-static entity_array_t ESE_JOIN(entities) = {0,0,NULL};
-static entity_array_t ESE_JOIN(removals) = {0,0,NULL};
+ARRAY_VARIABLE(entity, entities);
+ARRAY_VARIABLE(entity, removals);
+ARRAY_VARIABLE(ESE_SYSTEM_TYPE, components);
 
-static ESE_SYSTEM_TYPE * ESE_JOIN(components) = NULL;
-
-void ESE_JOIN(system_init_internal)()
+void system_init_internal()
 {
-	pthread_mutex_init(&ESE_JOIN(active_mutex), NULL);
-	pthread_mutex_init(&ESE_JOIN(pending_mutex), NULL);
-	pthread_mutex_init(&ESE_JOIN(deletion_mutex), NULL);
+	pthread_mutex_init(&active_mutex, NULL);
+	pthread_mutex_init(&pending_mutex, NULL);
+	pthread_mutex_init(&deletion_mutex, NULL);
 
 	#ifdef ESE_INIT_HOOK
 	ESE_INIT_HOOK();
@@ -36,193 +32,127 @@ void ESE_JOIN(system_init_internal)()
 
 typedef struct
 {
-	entity_t entity;
+	entity entity;
 	ESE_SYSTEM_TYPE component;
-} ESE_JOIN(pending_component);
+} pending_component;
 
-static struct
-{
-	size_t size;
-	size_t count;
-	ESE_JOIN(pending_component) * pending;
-} ESE_JOIN(pending_components) = {0,0,NULL};
+ARRAY_DEFINITION(pending_component)
+ARRAY_VARIABLE(pending_component, pending_components);
+ARRAY_IMPLEMENTATION(pending_component);
 
-void ESE_JOIN(add)(entity_t entity, void * component)
+void add(entity e, void * component)
 {
-	if (ESE_JOIN(pending_components).size > ESE_JOIN(pending_components).count)
-	{
-		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].component = *(ESE_SYSTEM_TYPE *)component;
-		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].entity = entity;
-		++ESE_JOIN(pending_components).count;
-		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
-	}
-	else
-	{
-		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-		ESE_JOIN(pending_components).size += (ESE_JOIN(pending_components).size / 5) + 10;
-		ESE_JOIN(pending_components).pending = realloc(ESE_JOIN(pending_components).pending, ESE_JOIN(pending_components).size * sizeof(ESE_JOIN(pending_component)));
-		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].component = *(ESE_SYSTEM_TYPE *)component;
-		ESE_JOIN(pending_components).pending[ESE_JOIN(pending_components).count].entity = entity;
-		++ESE_JOIN(pending_components).count;
-		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
-	}
+	pending_component pending = {e, *((ESE_SYSTEM_TYPE*) component)};
+	pthread_mutex_lock(&pending_mutex);
+	pending_component_array_append(&pending_components, &pending);
+	pthread_mutex_unlock(&pending_mutex);
 }
 
 
-static void ESE_JOIN(add_internal)()
+static void add_internal()
 {
-	#ifdef ESE_ADD_HOOK
-	ESE_ADD_HOOK(entity, component);
-	#endif
 	
-	if (ESE_JOIN(entities).size > (ESE_JOIN(entities).count + ESE_JOIN(pending_components).count))
-	{
-		pthread_mutex_lock(&ESE_JOIN(active_mutex));
-		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-		for (size_t i = 0; i < ESE_JOIN(pending_components).count; ++i)
-		{
-			ESE_JOIN(entities).entities[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].entity;
-			ESE_JOIN(components)[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].component;
-			++ESE_JOIN(entities).count;
-		}
-		ESE_JOIN(pending_components).count = 0;
-		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
-		pthread_mutex_unlock(&ESE_JOIN(active_mutex));
-	}
-	else
-	{
-		pthread_mutex_lock(&ESE_JOIN(active_mutex));
-		pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-		ESE_JOIN(entities).size += (ESE_JOIN(entities).size / 5) + ESE_JOIN(pending_components).count;
-		ESE_JOIN(entities).entities = realloc(ESE_JOIN(entities).entities, ESE_JOIN(entities).size * sizeof(entity_t));
-		ESE_JOIN(components) = realloc(ESE_JOIN(components), ESE_JOIN(entities).size * sizeof(ESE_SYSTEM_TYPE));
-		for (size_t i = 0; i < ESE_JOIN(pending_components).count; ++i)
-		{
-			ESE_JOIN(entities).entities[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].entity;
-			ESE_JOIN(components)[ESE_JOIN(entities).count] = ESE_JOIN(pending_components).pending[i].component;
-			++ESE_JOIN(entities).count;
-		}
-		ESE_JOIN(pending_components).count = 0;
-		pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
-		pthread_mutex_unlock(&ESE_JOIN(active_mutex));
-	}
+	pthread_mutex_lock(&active_mutex);
+	pthread_mutex_lock(&pending_mutex);
+	entity_array_reserve(&entities, pending_components.count);
+	ARRAY_ITERATE(pending_components,
+		entity_array_append(&entities, &pending_components.values[index].entity);
+		ESE_JOIN(array_append)(&components, &pending_components.values[index].component)
+		#ifdef ESE_ADD_HOOK
+		ESE_ADD_HOOK(pending_components->values[index].entity, components.values + components.count - 1);
+		#endif
+	)
+	pending_components.count = 0;
+	pthread_mutex_unlock(&pending_mutex);
+	pthread_mutex_unlock(&active_mutex);
 }
 
 
-static size_t ESE_JOIN(find_idx)(entity_t entity)
+static size_t find_idx(entity e)
 {
 	size_t idx = SIZE_MAX;
-	pthread_mutex_lock(&ESE_JOIN(active_mutex));
-	for (size_t i = 0; i < ESE_JOIN(entities).count; ++i)
-	{
-		if (ESE_JOIN(entities).entities[i] != entity);
+	pthread_mutex_lock(&active_mutex);
+	ARRAY_ITERATE(entities,
+		if (entities.values[index] != e);
 		else
 		{
-			idx = i;
+			idx = index;
 			break;
 		}
-	}
-	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	)
+	pthread_mutex_unlock(&active_mutex);
 	return idx;
 }
 
 
-void * ESE_JOIN(find)(entity_t entity)
+void * find(entity entity)
 {
-	size_t idx = ESE_JOIN(find_idx)(entity);
+	size_t idx = find_idx(entity);
 	if (idx != SIZE_MAX)
 	{
-		return (ESE_JOIN(components) + idx);
+		return (components.values + idx);
 	}
 	return NULL;
 }
 
 
-void ESE_JOIN(remove)(entity_t entity)
+void delete(entity entity)
 {
-	if (ESE_JOIN(removals).size > ESE_JOIN(removals).count)
-	{
-		pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
-		ESE_JOIN(removals).entities[ESE_JOIN(removals).count] = entity;
-		++ESE_JOIN(removals).count;
-		pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
-	}
-	else
-	{
-		pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
-		ESE_JOIN(removals).size += (ESE_JOIN(removals).size / 5) + 10;
-		ESE_JOIN(removals).entities = realloc(ESE_JOIN(removals).entities, ESE_JOIN(removals).size * sizeof(ESE_SYSTEM_TYPE));
-		ESE_JOIN(removals).entities[ESE_JOIN(removals).count] = entity;
-		++ESE_JOIN(removals).count;
-		pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
-	}
+	pthread_mutex_lock(&deletion_mutex);
+	entity_array_append(&removals, &entity);
+	pthread_mutex_unlock(&deletion_mutex);
 }
 
 
-static void ESE_JOIN(remove_internal)()
+static void delete_internal()
 {
-	pthread_mutex_lock(&ESE_JOIN(active_mutex));
-	pthread_mutex_lock(&ESE_JOIN(deletion_mutex));
-	size_t count = ESE_JOIN(entities).count;
-	for(size_t i = 0; i <count; ++i)
+	pthread_mutex_lock(&active_mutex);
+	pthread_mutex_lock(&deletion_mutex);
+	for(size_t i = 0; i < entities.count; ++i)
 	{
-		entity_t entity = ESE_JOIN(entities).entities[i];
-		for( size_t j = 0; j < ESE_JOIN(removals).count; ++j)
+		entity e = entities.values[i];
+		for( size_t j = 0; j < removals.count; ++j)
 		{
-			entity_t checker = ESE_JOIN(removals).entities[j];
-			if (entity != checker) {}\
+			entity checker = removals.values[j];
+			if (e != checker) {}\
 			else
 			{	
-				#ifdef ESE_REMOVE_HOOK
-				ESE_REMOVE_HOOK(entity, i);
+				#ifdef ESE_DELETE_HOOK
+				ESE_DELETE_HOOK(entity, i);
 				#endif
-				ESE_JOIN(components)[i] = ESE_JOIN(components)[ESE_JOIN(entities).count];
-				ESE_JOIN(entities).entities[i] = ESE_JOIN(entities).entities[ESE_JOIN(entities).count];
-				--ESE_JOIN(entities).count;
+				ESE_JOIN(array_remove)(&components, i);
+				entity_array_remove(&entities, i);
+				--i;
 				break;
 			}
 		}
 	}
-	ESE_JOIN(removals).count = 0;
-	pthread_mutex_unlock(&ESE_JOIN(deletion_mutex));
-	pthread_mutex_unlock(&ESE_JOIN(active_mutex));
+	removals.count = 0;
+	pthread_mutex_unlock(&deletion_mutex);
+	pthread_mutex_unlock(&active_mutex);
 }
 
 
-void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_count)
+void tick_internal(uint64_t tick, uint16_t thread_id, uint64_t thread_count)
 {
-		size_t count = (ESE_JOIN(entities).count / thread_count) + 1;
+	#ifdef ESE_SYSTEM_TICK
+		size_t count = (entities.count / thread_count) + 1;
 		size_t start = count * thread_id;
 		size_t end = start + count;
-		for (size_t i = start; i < ESE_JOIN(entities).count && i < end; ++i)
-			ESE_JOIN(tick)(ESE_JOIN(entities).entities[i], (ESE_JOIN(components) + i));
+		for (size_t i = start; i < entities.count && i < end; ++i)
+			ESE_SYSTEM_TICK(entities.values[i], (components.values + i));
+	#endif
 }
 
 
-void ESE_JOIN(resolve_internal)()
+void resolve_internal()
 {
 	#ifdef ESE_RESOLVE_HOOK
 	ESE_RESOLVE_HOOK();
 	#endif
-	ESE_JOIN(remove_internal)();
-	ESE_JOIN(add_internal)();
+	delete_internal();
+	add_internal();
 }
 
 
-system_functions ESE_JOIN(functions) = {ESE_JOIN(add), ESE_JOIN(find), ESE_JOIN(remove), ESE_JOIN(tick_internal), ESE_JOIN(resolve_internal)};
-
-#undef ESE_SYSTEM_TYPE
-
-#ifdef ESE_INIT_HOOK
-	#undef ESE_INIT_HOOK
-#endif
-#ifdef ESE_ADD_HOOK
-	#undef ESE_ADD_HOOK
-#endif
-#ifdef ESE_REMOVE_HOOK
-	#undef ESE_REMOVE_HOOK
-#endif
-#ifdef ESE_RESOLVE_HOOK
-	#undef ESE_RESOLVE_HOOK
-#endif
+system_functions functions = {add, find, delete, tick_internal, resolve_internal};

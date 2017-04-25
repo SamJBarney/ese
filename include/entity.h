@@ -1,10 +1,10 @@
 #pragma once
 #include <stdint.h>
 
-typedef uint64_t entity_t;
+typedef uint64_t entity;
 
 #define ENTITY_INVALID UINT64_MAX
 
-entity_t entity_create();
+entity entity_create();
 
-void entity_destroy(entity_t);
+void entity_destroy(entity);

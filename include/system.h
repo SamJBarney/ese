@@ -4,9 +4,9 @@
 #include "entity.h"
 #include "entity_array.h"
 
-typedef void (*system_add)(entity_t,void*);
-typedef void * (*system_find)(entity_t);
-typedef void (*system_remove)(entity_t);
+typedef void (*system_add)(entity,void*);
+typedef void * (*system_find)(entity);
+typedef void (*system_remove)(entity);
 typedef void (*system_tick)(uint64_t, uint16_t, uint64_t);
 typedef void (*system_resolve)();
 

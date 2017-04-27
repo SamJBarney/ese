@@ -119,9 +119,8 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
 
     // Actually run things
     struct timespec wait_time = {0, tick_duration * 1000};
-    __atomic_store_n(&ese_global.current_state, RUNNING, __ATOMIC_RELEASE);
-    while (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) < TICKING);
-    while (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) > RUNNING)
+    __atomic_store_n(&ese_global.current_state, TICKING, __ATOMIC_RELEASE);
+    while (true)
     {
         ese_sleep(&wait_time);
         uint64_t current_tick = __atomic_load_n(&ese_global.current_tick, __ATOMIC_ACQUIRE);
@@ -131,16 +130,17 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
         {
             break;
         }
-        __atomic_add_fetch(&ese_global.current_tick, 1, __ATOMIC_ACQ_REL);
+        if (current_state != TICKING)
+        {
+            __atomic_add_fetch(&ese_global.current_tick, 1, __ATOMIC_ACQ_REL);
+        }
     }
-
     // Cleanup threads
     __atomic_store_n(&ese_global.current_state, STOPPED, __ATOMIC_RELEASE);
     for (size_t i = 0; i < cpu_count(); ++i)
     {
         pthread_join(ese_global.tick_threads[i], NULL);
     }
-
     free(ese_global.tick_threads);
     ese_global.tick_threads = NULL;
 }

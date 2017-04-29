@@ -28,7 +28,7 @@ static struct
     ese_state_t current_state;
     pthread_t * tick_threads;
     uint64_t current_tick;
-    uint16_t idle_threads;
+    uint16_t tick_complete;
     uint16_t resolution_threads;
     pthread_mutex_t mutex;
 } ese_global;
@@ -62,45 +62,6 @@ void ese_init()
 
 bool ese_register(const char * name, system_t * system)
 {
-    // size_t name_length = strlen(name);
-    // // Build the symbol name
-    // char * path = malloc(name_length + strlen(".system") + 1);
-    // strcpy(path, name);
-    // strcat(path, ".system");
-    // void * source = dlopen(path, RTLD_LAZY);
-    // free(path);
-    // if (source)
-    // {
-    //     // Find the system functions
-    //     void * functions = dlsym(source, "functions");
-    //     if (functions)
-    //     {
-    //         if(system_wrapper_array.count < system_wrapper_array.size);
-    //         else
-    //         {
-    //             system_wrapper_array.size += 2;
-    //             system_wrapper_array.wrappers = realloc(system_wrapper_array.wrappers, sizeof(system_wrapper) * system_wrapper_array.size);
-    //         }
-    //         // Add the source
-    //         system_wrapper_array.wrappers[system_wrapper_array.count].source = source;
-
-    //         // Copy the name
-    //         size_t name_length = strlen(name);
-    //         system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
-    //         memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
-    //         strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
-
-    //         // Add the functions
-    //         system_wrapper_array.wrappers[system_wrapper_array.count].functions = (system_t *)functions;
-
-    //         ++system_wrapper_array.count;
-    //         return true;
-    //     }
-    //     else
-    //     {
-    //         dlclose(source);
-    //     }
-    // }
     // Make sure the system hasn't been registered before
     for (size_t i = 0; i < system_wrapper_array.count; ++i)
     {
@@ -173,20 +134,6 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
 
 
 
-void ese_cache()
-{
-
-}
-
-
-
-void ese_restore()
-{
-
-}
-
-
-
 void ese_seed(const char * component, entity entity, void * data)
 {
     if (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) > STOPPED)
@@ -237,13 +184,13 @@ void * tick_thread_start(void * arg)
             {
                 system_wrapper_array.wrappers[i].system->tick(ese_global.current_tick, thread_id, cpu_count());
             }
-            // Increment the number of idle threads
+            // Increment the number of tick complete threads
             pthread_mutex_lock(&ese_global.mutex);
-            __atomic_add_fetch(&ese_global.idle_threads, 1, __ATOMIC_ACQ_REL);
+            __atomic_add_fetch(&ese_global.tick_complete, 1, __ATOMIC_ACQ_REL);
             pthread_mutex_unlock(&ese_global.mutex);
 
             // Wait for all threads to have completed
-            while (__atomic_load_n(&(ese_global.idle_threads), __ATOMIC_RELAXED) != 8);
+            while (__atomic_load_n(&(ese_global.tick_complete), __ATOMIC_RELAXED) != 8);
 
             // Increment the number of resolution threads
             pthread_mutex_lock(&ese_global.mutex);
@@ -258,13 +205,13 @@ void * tick_thread_start(void * arg)
             // Set the current state to RUNNING
             __atomic_store_n(&ese_global.current_state, RUNNING, __ATOMIC_RELEASE);
 
-            // Decrement the number of idle threads
+            // Decrement the number of tick complete threads
             pthread_mutex_lock(&ese_global.mutex);
-            __atomic_sub_fetch(&ese_global.idle_threads, 1, __ATOMIC_ACQ_REL);
+            __atomic_sub_fetch(&ese_global.tick_complete, 1, __ATOMIC_ACQ_REL);
             pthread_mutex_unlock(&ese_global.mutex);
 
             // Wait for idle threads to be zero
-            while (__atomic_load_n(&(ese_global.idle_threads), __ATOMIC_RELAXED) != 0);
+            while (__atomic_load_n(&(ese_global.tick_complete), __ATOMIC_RELAXED) != 0);
 
             // Decrement number of resolution threads
             pthread_mutex_lock(&ese_global.mutex);

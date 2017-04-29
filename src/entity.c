@@ -3,6 +3,8 @@
 #include "entity_array.h"
 #include "internal/ese.h"
 
+ARRAY_IMPLEMENTATION(entity)
+
 pthread_mutex_t active_mutex;
 entity_array_t active_entities = {0,0,NULL};
 
@@ -79,22 +81,40 @@ entity entity_create()
 	if (e != ENTITY_INVALID)
 	{
 		pthread_mutex_lock(&active_mutex);
-		if (active_entities.count < active_entities.size)
-		{
-			active_entities.values[active_entities.count] = e;
-			++active_entities.count;
-		}
-		else
-		{
-			active_entities.size += (active_entities.size / 5) + 10;
-			active_entities.values = realloc(active_entities.values, active_entities.size * sizeof(entity));
-			active_entities.values[active_entities.count] = e;
-			++active_entities.count;
-		}
+		entity_array_append(&active_entities, &e);
 		pthread_mutex_unlock(&active_mutex);
 	}
 	return e;
 }
+
+
+
+entity entity_create_if_exists(entity e)
+{
+
+	pthread_mutex_lock(&active_mutex);
+	for (size_t i = 0; i < active_entities.count; ++i)
+	{
+		if (active_entities.values[i] != e);
+		else
+		{
+			e = ENTITY_INVALID;
+		}
+	}
+	if (e != ENTITY_INVALID)
+	{
+		entity_array_append(&active_entities, &e);
+		pthread_mutex_unlock(&active_mutex);
+	}
+	else
+	{
+		pthread_mutex_unlock(&active_mutex);
+		e = entity_create();
+	}
+	return e;
+}
+
+
 
 void entity_destroy(entity e)
 {
@@ -118,5 +138,3 @@ void entity_destroy(entity e)
 		schedule_entity_deletion(e);
 	}
 }
-
-ARRAY_IMPLEMENTATION(entity)

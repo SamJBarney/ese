@@ -155,4 +155,4 @@ void resolve_internal()
 }
 
 
-system_functions functions = {add, find, delete, tick_internal, resolve_internal};
+system_t ESE_JOIN(system) = {add, find, delete, tick_internal, resolve_internal};

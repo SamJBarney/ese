@@ -12,9 +12,8 @@ void ese_sleep(const struct timespec * wait_time);
 
 typedef struct
 {
-    void * source;
     char * name;
-    system_functions * functions;
+    system_t * system;
 } system_wrapper;
 
 struct
@@ -61,48 +60,75 @@ void ese_init()
 
 
 
-bool ese_register(const char * name)
+bool ese_register(const char * name, system_t * system)
 {
-    size_t name_length = strlen(name);
-    // Build the symbol name
-    char * path = malloc(name_length + strlen(".system") + 1);
-    strcpy(path, name);
-    strcat(path, ".system");
-    void * source = dlopen(path, RTLD_LAZY);
-    free(path);
-    if (source)
+    // size_t name_length = strlen(name);
+    // // Build the symbol name
+    // char * path = malloc(name_length + strlen(".system") + 1);
+    // strcpy(path, name);
+    // strcat(path, ".system");
+    // void * source = dlopen(path, RTLD_LAZY);
+    // free(path);
+    // if (source)
+    // {
+    //     // Find the system functions
+    //     void * functions = dlsym(source, "functions");
+    //     if (functions)
+    //     {
+    //         if(system_wrapper_array.count < system_wrapper_array.size);
+    //         else
+    //         {
+    //             system_wrapper_array.size += 2;
+    //             system_wrapper_array.wrappers = realloc(system_wrapper_array.wrappers, sizeof(system_wrapper) * system_wrapper_array.size);
+    //         }
+    //         // Add the source
+    //         system_wrapper_array.wrappers[system_wrapper_array.count].source = source;
+
+    //         // Copy the name
+    //         size_t name_length = strlen(name);
+    //         system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
+    //         memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
+    //         strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
+
+    //         // Add the functions
+    //         system_wrapper_array.wrappers[system_wrapper_array.count].functions = (system_t *)functions;
+
+    //         ++system_wrapper_array.count;
+    //         return true;
+    //     }
+    //     else
+    //     {
+    //         dlclose(source);
+    //     }
+    // }
+    // Make sure the system hasn't been registered before
+    for (size_t i = 0; i < system_wrapper_array.count; ++i)
     {
-        // Find the system functions
-        void * functions = dlsym(source, "functions");
-        if (functions)
-        {
-            if(system_wrapper_array.count < system_wrapper_array.size);
-            else
-            {
-                system_wrapper_array.size += 2;
-                system_wrapper_array.wrappers = realloc(system_wrapper_array.wrappers, sizeof(system_wrapper) * system_wrapper_array.size);
-            }
-            // Add the source
-            system_wrapper_array.wrappers[system_wrapper_array.count].source = source;
-
-            // Copy the name
-            size_t name_length = strlen(name);
-            system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
-            memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
-            strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
-
-            // Add the functions
-            system_wrapper_array.wrappers[system_wrapper_array.count].functions = (system_functions *)functions;
-
-            ++system_wrapper_array.count;
-            return true;
-        }
+        if (strcmp(system_wrapper_array.wrappers[i].name, name) != 0);
         else
         {
-            dlclose(source);
+            return false;
         }
     }
-    return false;
+
+    if(system_wrapper_array.count < system_wrapper_array.size);
+    else
+    {
+        system_wrapper_array.size += 2;
+        system_wrapper_array.wrappers = realloc(system_wrapper_array.wrappers, sizeof(system_wrapper) * system_wrapper_array.size);
+    }
+
+    // Copy the name
+    size_t name_length = strlen(name);
+    system_wrapper_array.wrappers[system_wrapper_array.count].name = malloc(name_length + 1);
+    memset(system_wrapper_array.wrappers[system_wrapper_array.count].name, '\0', name_length + 1);
+    strcpy(system_wrapper_array.wrappers[system_wrapper_array.count].name, name);
+
+    // Add the functions
+    system_wrapper_array.wrappers[system_wrapper_array.count].system = system;
+
+    ++system_wrapper_array.count;
+    return true;
 }
 
 
@@ -169,8 +195,8 @@ void ese_seed(const char * component, entity entity, void * data)
         {
             if (strcmp(system_wrapper_array.wrappers[i].name, component) == 0)
             {
-                system_wrapper_array.wrappers[i].functions->add(entity, data);
-                system_wrapper_array.wrappers[i].functions->resolve();
+                system_wrapper_array.wrappers[i].system->add(entity, data);
+                system_wrapper_array.wrappers[i].system->resolve();
                 break;
             }
         }
@@ -187,7 +213,7 @@ void resolve_systems(uint16_t thread_id, uint16_t thread_count)
     size_t end = start + count;
     for (size_t i = start; i < end && i < system_wrapper_array.count; ++i)
     {
-        system_wrapper_array.wrappers[i].functions->resolve();
+        system_wrapper_array.wrappers[i].system->resolve();
     }
 }
 
@@ -209,7 +235,7 @@ void * tick_thread_start(void * arg)
 
             for (size_t i = 0; i < system_wrapper_array.count; ++i)
             {
-                system_wrapper_array.wrappers[i].functions->tick(ese_global.current_tick, thread_id, cpu_count());
+                system_wrapper_array.wrappers[i].system->tick(ese_global.current_tick, thread_id, cpu_count());
             }
             // Increment the number of idle threads
             pthread_mutex_lock(&ese_global.mutex);
@@ -275,6 +301,6 @@ void schedule_entity_deletion(entity e)
 {
     for (size_t i = 0; i < system_wrapper_array.count; ++i)
     {
-        system_wrapper_array.wrappers[i].functions->remove(e);
+        system_wrapper_array.wrappers[i].system->remove(e);
     }
 }

@@ -12,9 +12,9 @@ typedef void (*system_resolve)();
 
 typedef struct
 {
-	system_add add;
-	system_find find;
-	system_remove remove;
-	system_tick tick;
-	system_resolve resolve;
-} system_functions;
+	const system_add add;
+	const system_find find;
+	const system_remove remove;
+	const system_tick tick;
+	const system_resolve resolve;
+} system_t;

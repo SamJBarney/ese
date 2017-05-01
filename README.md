@@ -1,10 +1,17 @@
 Entity System Engine
 ====================
+This is an attempt to make writing simulators and games as simple as possible using the Entity-Component-System architecture.
 
-## Features
-- Programmer doesn't need to worry about threading (all handled within the engine itself)
-- Writing a new system is as simple as including the system_generator header
-- Adding components to entities is as simple as calling the associated function handle
+The main focuses of this project are as follows:
+- Performance
+- API simplicity
+- Development simplicity
+
+## How it works
+### Main Engine
+TODO: Write details here
+### Systems
+TODO: Write details here
 
 ## API
 ### bool ese_register(const char * name, system_t * system)

@@ -25,7 +25,24 @@ Entity System Engine
 ### void entity_destroy(entity)
 > Removes an entity from the engine, marking the associated components as deleteable
 
-## Example System
+## Creating a system
+Creating a new system is rather easy as ese generates the necessary functions for the system (add, delete, etc.) so you don't have to write them yourself. However, hooks are provided to allow the programmer to add additional functionality into those generated functions as needed. How to use the hooks can be seen in the example at the bottom.
+
+### Hooks
+#### ESE_ADD_HOOK
+> Hooks into the system's add function. Gets passed the entity id and the pointer to the component being added prior to addition. Returns void.
+
+#### ESE_DELETE_HOOK
+> Hooks into the system's delete function. Gets passed the entity id and the pointer to the component being removed prior to removal. Returns void.
+
+#### ESE_RESOLVE_HOOK
+> Hooks into the system's resolution function. No arguments. Called before the adding and removal of components. Returns void.
+
+#### ESE_SYSTEM_TICK
+> The function that is called during the tick phase of the engine. Gets passed the entity id and a pointer to the associated component. Returns void.
+
+
+### Example System
     #include "system.h"
     
     #define ESE_SYSTEM_TYPE example
@@ -34,15 +51,28 @@ Entity System Engine
       int value;
     } example;
     
-    #define ESE_ADD_HOOK add_hook
+    #define ESE_ADD_HOOK add_hook // Doesn't need to be defined unless you want to hook into the add functionality
     void add_hook(entity e, example * component)
     {
-      // Allows you to alter the component before it is added to the system
+      // Do stuff here
     }
     
-    #define ESE_DELETE_HOOK delete_hook
+    #define ESE_DELETE_HOOK delete_hook // Doesn't need to be defined unless you want to hook into the delete functionality
     void delete_hook(entity e, example * component)
     {
+        // Do stuff here
+    }
+    
+    #define ESE_RESOLVE_HOOK resolve_hook
+    void resolve_hook()
+    {
+        // Do stuff here
+    }
+    
+    #define ESE_SYSTEM_TICK example_tick // Doesn't need to be defined unless you want to do something to the component each tick
+    void example_tick(entity e, example * component)
+    {
+        // Do stuff here
     }
     
     #include "system_generator.h"

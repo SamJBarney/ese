@@ -24,3 +24,25 @@ Entity System Engine
 
 ### void entity_destroy(entity)
 > Removes an entity from the engine, marking the associated components as deleteable
+
+## Example System
+    #include "system.h"
+    
+    #define ESE_SYSTEM_TYPE example
+    typedef struct
+    {
+      int value;
+    } example;
+    
+    #define ESE_ADD_HOOK add_hook
+    void add_hook(entity e, example * component)
+    {
+      // Allows you to alter the component before it is added to the system
+    }
+    
+    #define ESE_DELETE_HOOK delete_hook
+    void delete_hook(entity e, example * component)
+    {
+    }
+    
+    #include "system_generator.h"

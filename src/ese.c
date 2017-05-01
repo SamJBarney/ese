@@ -31,7 +31,7 @@ static struct
     uint16_t tick_complete;
     uint16_t resolution_threads;
     pthread_mutex_t mutex;
-} ese_global;
+} ese_global = {STOPPED, NULL, 0, 0, 0};
 
 
 static int count = 0;
@@ -46,16 +46,6 @@ uint16_t cpu_count()
         }
     }
     return count;
-}
-
-
-
-void ese_init()
-{
-    ese_global.tick_threads = NULL;
-    ese_global.current_state = STOPPED;
-    ese_global.current_tick = 0;
-
 }
 
 
@@ -96,6 +86,7 @@ bool ese_register(const char * name, system_t * system)
 
 void ese_run(size_t tick_duration, tick_callback_t callback)
 {
+    pthread_mutex_init(&ese_global, NULL);
     // Start tick_threads
     uint64_t count = cpu_count();
     ese_global.tick_threads = malloc(sizeof(ese_global.tick_threads) * count);
@@ -134,13 +125,13 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
 
 
 
-void ese_seed(const char * component, entity entity, void * data)
+void ese_seed(const char * system, entity entity, void * data)
 {
     if (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) > STOPPED)
     {
         for(size_t i = 0; i < system_wrapper_array.count; ++i)
         {
-            if (strcmp(system_wrapper_array.wrappers[i].name, component) == 0)
+            if (strcmp(system_wrapper_array.wrappers[i].name, system) == 0)
             {
                 system_wrapper_array.wrappers[i].system->add(entity, data);
                 system_wrapper_array.wrappers[i].system->resolve();

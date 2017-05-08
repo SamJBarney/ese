@@ -4,6 +4,7 @@
 #include "entity.h"
 #include "entity_array.h"
 
+typedef void (*system_init)();
 typedef void (*system_add)(entity,void*);
 typedef void * (*system_find)(entity);
 typedef void (*system_remove)(entity);
@@ -12,6 +13,7 @@ typedef void (*system_resolve)();
 
 typedef struct
 {
+	const system_init init;
 	const system_add add;
 	const system_find find;
 	const system_remove remove;

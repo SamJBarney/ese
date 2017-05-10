@@ -1,14 +1,14 @@
 CC=gcc
 CFLAGS=-c -Wall -Iinclude
-LDFLAGS=-shared
+LDFLAGS=-static
 SOURCES=$(wildcard src/*.c)
 OBJECTS=$(SOURCES:.c=.o)
-LIBRARY=libese.so
+LIBRARY=libese.a
 
 all: $(SOURCES) $(LIBRARY)
 
 $(LIBRARY): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	ar rcs $@ $(OBJECTS)
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@

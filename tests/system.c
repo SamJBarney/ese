@@ -11,8 +11,8 @@ typedef struct {
 
 int tick_count = 0;
 
-#define ESE_SYSTEM_TICK position_tick
-void position_tick(entity e, position * pos)
+#define ESE_TICK_HOOK position_tick
+void position_tick(uint64_t tick, entity e, position * pos)
 {
     ++tick_count;
 }

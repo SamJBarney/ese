@@ -135,12 +135,12 @@ static void ESE_JOIN(delete_internal)()
 
 void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_count)
 {
-	#ifdef ESE_SYSTEM_TICK
+	#ifdef ESE_TICK_HOOK
 		size_t count = (ESE_JOIN(entities).count / thread_count) + 1;
 		size_t start = count * thread_id;
 		size_t end = start + count;
 		for (size_t i = start; i < ESE_JOIN(entities).count && i < end; ++i)
-			ESE_SYSTEM_TICK(ESE_JOIN(entities).values[i], (components.values + i));
+			ESE_TICK_HOOK(tick, ESE_JOIN(entities).values[i], (components.values + i));
 	#endif
 }
 

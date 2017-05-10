@@ -45,7 +45,7 @@ Creating a new system is rather easy as ese generates the necessary functions fo
 #### ESE_RESOLVE_HOOK
 > Hooks into the system's resolution function. No arguments. Called before the adding and removal of components. Returns void.
 
-#### ESE_SYSTEM_TICK
+#### ESE_TICK_HOOK
 > The function that is called during the tick phase of the engine. Gets passed the entity id and a pointer to the associated component. Returns void.
 
 
@@ -76,8 +76,8 @@ Creating a new system is rather easy as ese generates the necessary functions fo
         // Do stuff here
     }
     
-    #define ESE_SYSTEM_TICK example_tick // Doesn't need to be defined unless you want to do something to the component each tick
-    void example_tick(entity e, example * component)
+    #define ESE_TICK_HOOK example_tick // Doesn't need to be defined unless you want to do something to the component each tick
+    void example_tick(uint64_t tick, entity e, example * component)
     {
         // Do stuff here
     }

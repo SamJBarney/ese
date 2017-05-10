@@ -16,7 +16,7 @@ static pthread_mutex_t ESE_JOIN(deletion_mutex);
 
 ARRAY_VARIABLE(entity, ESE_JOIN(entities));
 ARRAY_VARIABLE(entity, ESE_JOIN(removals));
-ARRAY_VARIABLE(ESE_SYSTEM_TYPE, components);
+ARRAY_VARIABLE(ESE_SYSTEM_TYPE, ESE_JOIN(components));
 
 void ESE_JOIN(init)()
 {
@@ -34,15 +34,15 @@ typedef struct
 {
 	entity entity;
 	ESE_SYSTEM_TYPE component;
-} pending_component;
+} ESE_JOIN(pending_component);
 
-ARRAY_DEFINITION(pending_component)
-ARRAY_VARIABLE(pending_component, ESE_JOIN(pending_components));
-ARRAY_IMPLEMENTATION(pending_component);
+ARRAY_DEFINITION(ESE_JOIN(pending_component))
+ARRAY_VARIABLE(ESE_JOIN(pending_component), ESE_JOIN(pending_components));
+ARRAY_IMPLEMENTATION(ESE_JOIN(pending_component));
 
 void ESE_JOIN(add)(entity e, void * component)
 {
-	pending_component pending = {e, *((ESE_SYSTEM_TYPE*) component)};
+	ESE_JOIN(pending_component) pending = {e, *((ESE_SYSTEM_TYPE*) component)};
 	pthread_mutex_lock(&ESE_JOIN(pending_mutex));
 	pending_component_array_append(&ESE_JOIN(pending_components), &pending);
 	pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
@@ -59,7 +59,7 @@ static void ESE_JOIN(add_internal)()
 		entity_array_append(&ESE_JOIN(entities), &ESE_JOIN(pending_components).values[index].entity);
 		ESE_JOIN(array_append)(&components, &ESE_JOIN(pending_components).values[index].component)
 		#ifdef ESE_ADD_HOOK
-		ESE_ADD_HOOK(ESE_JOIN(pending_components)->values[index].entity, components.values + components.count - 1);
+		ESE_ADD_HOOK(ESE_JOIN(pending_components)->values[index].entity, ESE_JOIN(components).values + ESE_JOIN(components).count - 1);
 		#endif
 	)
 	ESE_JOIN(pending_components).count = 0;
@@ -90,7 +90,7 @@ void * ESE_JOIN(find)(entity entity)
 	size_t idx = ESE_JOIN(find_idx)(entity);
 	if (idx != SIZE_MAX)
 	{
-		return (components.values + idx);
+		return (ESE_JOIN(components).values + idx);
 	}
 	return NULL;
 }
@@ -118,9 +118,9 @@ static void ESE_JOIN(delete_internal)()
 			else
 			{	
 				#ifdef ESE_DELETE_HOOK
-				ESE_DELETE_HOOK(e, components.values + i);
+				ESE_DELETE_HOOK(e, ESE_JOIN(components).values + i);
 				#endif
-				ESE_JOIN(array_remove)(&components, i);
+				ESE_JOIN(array_remove)(&ESE_JOIN(components), i);
 				entity_array_remove(&ESE_JOIN(entities), i);
 				--i;
 				break;
@@ -140,7 +140,7 @@ void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_
 		size_t start = count * thread_id;
 		size_t end = start + count;
 		for (size_t i = start; i < ESE_JOIN(entities).count && i < end; ++i)
-			ESE_TICK_HOOK(tick, ESE_JOIN(entities).values[i], (components.values + i));
+			ESE_TICK_HOOK(tick, ESE_JOIN(entities).values[i], (ESE_JOIN(components).values + i));
 	#endif
 }
 

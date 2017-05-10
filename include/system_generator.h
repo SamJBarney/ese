@@ -44,7 +44,7 @@ void ESE_JOIN(add)(entity e, void * component)
 {
 	ESE_JOIN(pending_component) pending = {e, *((ESE_SYSTEM_TYPE*) component)};
 	pthread_mutex_lock(&ESE_JOIN(pending_mutex));
-	pending_component_array_append(&ESE_JOIN(pending_components), &pending);
+	ESE_JOIN(pending_component_array_append)(&ESE_JOIN(pending_components), &pending);
 	pthread_mutex_unlock(&ESE_JOIN(pending_mutex));
 }
 
@@ -57,7 +57,7 @@ static void ESE_JOIN(add_internal)()
 	entity_array_reserve(&ESE_JOIN(entities), ESE_JOIN(pending_components).count);
 	ARRAY_ITERATE(ESE_JOIN(pending_components),
 		entity_array_append(&ESE_JOIN(entities), &ESE_JOIN(pending_components).values[index].entity);
-		ESE_JOIN(array_append)(&components, &ESE_JOIN(pending_components).values[index].component)
+		ESE_JOIN(array_append)(&ESE_JOIN(components), &ESE_JOIN(pending_components).values[index].component)
 		#ifdef ESE_ADD_HOOK
 		ESE_ADD_HOOK(ESE_JOIN(pending_components)->values[index].entity, ESE_JOIN(components).values + ESE_JOIN(components).count - 1);
 		#endif

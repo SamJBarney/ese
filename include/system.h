@@ -20,3 +20,8 @@ typedef struct
 	const system_tick tick;
 	const system_resolve resolve;
 } system_t;
+
+#define SYSTEM_DEFINITION(type)\
+void type ## _add(entity, void *);\
+void * type ## _find(entity);\
+void type ## _delete(entity)

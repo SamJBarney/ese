@@ -145,7 +145,7 @@ void ESE_JOIN(tick_internal)(uint64_t tick, uint16_t thread_id, uint64_t thread_
 }
 
 
-void ESE_JOIN(resolve_internal)()
+static void ESE_JOIN(resolve_internal)()
 {
 	#ifdef ESE_RESOLVE_HOOK
 	ESE_RESOLVE_HOOK();

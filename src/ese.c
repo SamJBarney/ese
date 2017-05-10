@@ -86,7 +86,7 @@ bool ese_register(const char * name, system_t * system)
 
 void ese_run(size_t tick_duration, tick_callback_t callback)
 {
-    pthread_mutex_init(&ese_global, NULL);
+    pthread_mutex_init(&ese_global.mutex, NULL);
     // Start tick_threads
     uint64_t count = cpu_count();
     ese_global.tick_threads = malloc(sizeof(ese_global.tick_threads) * count);

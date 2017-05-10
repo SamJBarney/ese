@@ -118,7 +118,7 @@ static void ESE_JOIN(delete_internal)()
 			else
 			{	
 				#ifdef ESE_DELETE_HOOK
-				ESE_DELETE_HOOK(entity, i);
+				ESE_DELETE_HOOK(e, i);
 				#endif
 				ESE_JOIN(array_remove)(&components, i);
 				entity_array_remove(&ESE_JOIN(entities), i);

@@ -96,11 +96,12 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
     }
 
     // Actually run things
-    struct timespec wait_time = {0, tick_duration * 1000};
+    struct timespec wait_time = {0, tick_duration};
     __atomic_store_n(&ese_global.current_state, TICKING, __ATOMIC_RELEASE);
     while (true)
     {
-        ese_sleep(&wait_time);
+        for( size_t i = 0; i < 1000; ++i)
+            ese_sleep(&wait_time);
         uint64_t current_tick = __atomic_load_n(&ese_global.current_tick, __ATOMIC_ACQUIRE);
         ese_state_t current_state = __atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE);
         if (callback(current_tick, current_state));
@@ -108,9 +109,10 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
         {
             break;
         }
-        if (current_state != TICKING)
+        if (current_state == RUNNING)
         {
             __atomic_add_fetch(&ese_global.current_tick, 1, __ATOMIC_ACQ_REL);
+            __atomic_store_n(&ese_global.current_state, TICKING, __ATOMIC_RELEASE);
         }
     }
     // Cleanup threads
@@ -127,7 +129,7 @@ void ese_run(size_t tick_duration, tick_callback_t callback)
 
 void ese_seed(const char * system, entity entity, void * data)
 {
-    if (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) > STOPPED)
+    if (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) == STOPPED)
     {
         for(size_t i = 0; i < system_wrapper_array.count; ++i)
         {
@@ -181,7 +183,7 @@ void * tick_thread_start(void * arg)
             pthread_mutex_unlock(&ese_global.mutex);
 
             // Wait for all threads to have completed
-            while (__atomic_load_n(&(ese_global.tick_complete), __ATOMIC_RELAXED) != 8);
+            while (__atomic_load_n(&(ese_global.tick_complete), __ATOMIC_RELAXED) != cpu_count());
 
             // Increment the number of resolution threads
             pthread_mutex_lock(&ese_global.mutex);
@@ -191,7 +193,7 @@ void * tick_thread_start(void * arg)
             // Resolve systems for this thread
             resolve_systems(thread_id, cpu_count());
 
-            while (__atomic_load_n(&ese_global.resolution_threads, __ATOMIC_RELAXED) != 8);
+            while (__atomic_load_n(&ese_global.resolution_threads, __ATOMIC_RELAXED) != cpu_count());
 
             // Set the current state to RUNNING
             __atomic_store_n(&ese_global.current_state, RUNNING, __ATOMIC_RELEASE);

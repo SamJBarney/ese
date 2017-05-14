@@ -172,10 +172,10 @@ void * tick_thread_start(void * arg)
         // If the thread has been told to tick
         if (__atomic_load_n(&ese_global.current_state, __ATOMIC_ACQUIRE) == TICKING)
         {
-
+            uint16_t thread_count = cpu_count();
             for (size_t i = 0; i < system_wrapper_array.count; ++i)
             {
-                system_wrapper_array.wrappers[i].system->tick(ese_global.current_tick, thread_id, cpu_count());
+                system_wrapper_array.wrappers[i].system->tick(ese_global.current_tick, thread_id, thread_count);
             }
             // Increment the number of tick complete threads
             pthread_mutex_lock(&ese_global.mutex);
@@ -183,7 +183,7 @@ void * tick_thread_start(void * arg)
             pthread_mutex_unlock(&ese_global.mutex);
 
             // Wait for all threads to have completed
-            while (__atomic_load_n(&(ese_global.tick_complete), __ATOMIC_RELAXED) != cpu_count());
+            while (__atomic_load_n(&(ese_global.tick_complete), __ATOMIC_RELAXED) != thread_count);
 
             // Increment the number of resolution threads
             pthread_mutex_lock(&ese_global.mutex);
@@ -191,9 +191,9 @@ void * tick_thread_start(void * arg)
             pthread_mutex_unlock(&ese_global.mutex);
 
             // Resolve systems for this thread
-            resolve_systems(thread_id, cpu_count());
+            resolve_systems(thread_id, thread_count);
 
-            while (__atomic_load_n(&ese_global.resolution_threads, __ATOMIC_RELAXED) != cpu_count());
+            while (__atomic_load_n(&ese_global.resolution_threads, __ATOMIC_RELAXED) != thread_count);
 
             // Set the current state to RUNNING
             __atomic_store_n(&ese_global.current_state, RUNNING, __ATOMIC_RELEASE);
